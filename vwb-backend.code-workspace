@@ -1,0 +1,30 @@
+{
+    "folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"workbench.colorCustomizations": {
+			"activityBar.activeBackground": "#949bcc",
+			"activityBar.activeBorder": "#f5e9eb",
+			"activityBar.background": "#949bcc",
+			"activityBar.foreground": "#15202b",
+			"activityBar.inactiveForeground": "#15202b99",
+			"activityBarBadge.background": "#f5e9eb",
+			"activityBarBadge.foreground": "#15202b",
+			"statusBar.background": "#727bbb",
+			"statusBar.foreground": "#e7e7e7",
+			"statusBarItem.hoverBackground": "#949bcc",
+			"titleBar.activeBackground": "#727bbb",
+			"titleBar.activeForeground": "#e7e7e7",
+			"titleBar.inactiveBackground": "#727bbb99",
+			"titleBar.inactiveForeground": "#e7e7e799"
+		},
+		"peacock.color": "#727bbb",
+		"cSpell.words": [
+			"MONGODB",
+			"virtualwhiteboard"
+		]
+	}
+}
