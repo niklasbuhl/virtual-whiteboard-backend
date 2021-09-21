@@ -10,6 +10,8 @@ export default function auth(
 	res: Response,
 	next: NextFunction
 ): any {
+	console.log("Incoming auth request")
+
 	try {
 		// Collect token
 		const token = req.cookies.token
@@ -28,7 +30,7 @@ export default function auth(
 		next()
 
 		// Done
-	} catch (err) {
+	} catch (err: any) {
 		err.errorMessage = "Unauthorized."
 		err.serverMessage = "Person with unauthorized token tried to log in."
 		err.status = 401

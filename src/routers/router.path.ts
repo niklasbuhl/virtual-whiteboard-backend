@@ -1,49 +1,41 @@
-import express, { Response, Request, NextFunction, response } from "express"
+import express, { Request, Response } from "express"
 import getIdFromToken from "../functions/getIdFromToken"
 import auth from "../middleware/auth"
-import User, { IUser } from "../models/model.user"
-import Text, { IText } from "../models/model.text"
-import errorResponse from "../middleware/errorResponse"
-import { ObjectID } from "mongodb"
+import User from "../models/model.user"
 import Mongoose from "mongoose"
+import { ObjectID } from "mongodb"
+import errorResponse from "../middleware/errorResponse"
 import Role from "../enums/enum.role"
 import IFrontendUser from "../interfaces/interface.frontendUser"
-import IFrontendText from "../interfaces/interface.frontendText"
+import IFrontendImage from "../interfaces/interface.frontendImage"
+import Path, { IPath } from "../models/model.path"
+import IFrontendPath from "../interfaces/interface.frontendPath"
+import { FormatInputPathObject } from "path"
 
 const router = express.Router()
 
-// POST: Create new text
+// POST: Create new path
 router.post("/", auth, async (req: Request, res: Response) => {
-	// content
-	// authorId
-	// authorName
-	// createdAt
+	console.log("POST Image Request")
+
+	// path
+	// x
+	// y
 
 	try {
-		// Saving new text
-		// console.log("POST Request for text")
-		// console.log(req.body)
-		// Content
-		const { content, text, x, y } = req.body
-		if (!content && !text)
+		const { path, x, y } = req.body
+
+		if (!path)
 			throw {
 				status: 204,
-				errorMessage: "No content.",
+				errorMessage: "No path string.",
 			}
 
-		if (content && text) {
-			throw {
-				status: 500,
-				errorMessage: "Please only use either 'content' or 'text'.",
-			}
-		}
-
-		if (!x && !y) {
+		if (!x && !y)
 			throw {
 				status: 204,
-				errorMessage: "No coords.",
+				errorMessage: "No path position.",
 			}
-		}
 
 		// AuthorId
 		const authorId = getIdFromToken(req.cookies.token)
@@ -63,14 +55,12 @@ router.post("/", auth, async (req: Request, res: Response) => {
 				forceLogOut: true,
 			}
 
-		// const authorName = currentUser.username
-
 		// CreatedAt
 		const createdAt = new Date()
 
-		// Create new text
-		const newText: IText = new Text({
-			text: content || text,
+		// Create new Image
+		const newPath: IPath = new Path({
+			path: path,
 			author: author._id,
 			editInfo: {
 				createdAt: createdAt,
@@ -81,15 +71,13 @@ router.post("/", auth, async (req: Request, res: Response) => {
 			},
 		})
 
-		console.log(newText)
+		console.log(newPath)
 
-		await newText.save()
+		await newPath.save()
 
 		res
 			.status(201)
-			.json({ message: "Text created successfully.", id: newText._id })
-
-		// Done
+			.json({ message: "Path created successfully.", id: newPath._id })
 	} catch (err: any) {
 		console.error(err.forceLogOut)
 		console.error(err.serverMessage)
@@ -105,52 +93,43 @@ router.post("/", auth, async (req: Request, res: Response) => {
 	}
 })
 
-// PUT: Update text
+// PUT: Update Path
 router.put("/", auth, async (req: Request, res: Response) => {
-	console.log("PUT Request")
+	console.log("PUT Path Request")
+
 	try {
-		console.log(req.body)
+		const { id, x, y } = req.body
 
-		const { content, text, textId, contentId, id, x, y } = req.body
-
-		var updateTextId: string,
-			newText: string = "",
-			newX: number = 0,
-			newY: number = 0,
-			updateText: boolean = false,
+		var updatePathId: string,
 			updatePosition: boolean = false
 
-		// Check for content id
-		if (!textId && !contentId && !id)
+		if (!id)
 			throw {
-				errorMessage: "No text id.",
+				errorMessage: "No path id.",
 				status: 406,
 			}
-		else updateTextId = (textId || contentId || id).toString()
+		else updatePathId = id
 
-		console.log(`Found content id: ${updateTextId}`)
+		console.log(`Path ID: ${updatePathId}`)
 
-		// Check for any content or position
-		if (!content && !text && !x && !y) {
+		if (!x && !y)
 			throw {
-				errorMessage: "No text content or position.",
+				errorMessage: "No path updates found.",
 				status: 406,
 			}
-		} else {
-			console.log("Found new content.")
-			// If there is content or text
-			if (content || text) {
-				newText = (content || text).toString()
-				updateText = true
-			}
+		else {
+			console.log("Found path updates.")
 
-			// If there is a new position
 			if (x && y) {
-				newX = x
-				newY = y
 				updatePosition = true
 			}
 		}
+
+		if (!updatePosition)
+			throw {
+				errorMessage: "No path updates found.",
+				status: 406,
+			}
 
 		// Get user id
 		const userId = getIdFromToken(req.cookies.token)
@@ -166,46 +145,48 @@ router.put("/", auth, async (req: Request, res: Response) => {
 		console.log("Found user ID in cookie.")
 
 		// Check for valid id
-		if (!ObjectID.isValid(updateTextId))
+		if (!ObjectID.isValid(updatePathId))
 			throw {
 				errorMessage: `Invalid object id.`,
 				status: 406,
 			}
 
-		console.log("Text ID is valid.")
+		console.log("Path ID is valid.")
 
 		// Find a text
-		console.log(`Finding a text with id: ${updateTextId}`)
+		console.log(`Finding an path with id: ${updatePathId}`)
 
-		const textToUpdate: IText | Mongoose.Error.CastError | null =
-			await Text.findById(updateTextId, function (err: any, text: Text): void {
-				if (err) {
-					console.log(`Mongoose Error: ${err.message}`)
+		const pathToUpdate: IPath | Mongoose.Error.CastError | null =
+			await Path.findById(
+				updatePathId,
+				function (err: any, image: typeof Path): void {
+					if (err) {
+						console.log(`Mongoose Error: ${err.message}`)
 
-					err.serverMessage = err.message
-					err.status = 406
+						err.serverMessage = err.message
+						err.status = 406
 
-					errorResponse(res, err)
-				} else {
-					console.log("Success...")
+						errorResponse(res, err)
+					} else {
+						console.log("Success...")
+					}
 				}
-			})
+			)
 
-		console.log("Found a text:")
+		console.log("Found an path:")
 
-		console.log(textToUpdate)
+		console.log(pathToUpdate)
 
 		// Make sure a text is found.
-		if (!textToUpdate)
+		if (!pathToUpdate)
 			throw {
-				errorMessage: `No text item found with id: ${updateTextId}.`,
+				errorMessage: `No path item found with id: ${updatePathId}.`,
 				status: 404,
 			}
-
 		// Check if the current user is the author of the text.
-		console.log(`User id: ${userId}, text author id: ${textToUpdate.author}`)
+		console.log(`User id: ${userId}, path author id: ${pathToUpdate.author}`)
 
-		if ((userId as string) != (textToUpdate.author as string)) {
+		if ((userId as string) != (pathToUpdate.author as string)) {
 			// Not the author
 
 			// Find out if current user is moderator or admin
@@ -217,7 +198,7 @@ router.put("/", auth, async (req: Request, res: Response) => {
 				if (userRole != Role.Moderator && userRole != Role.Admin) {
 					throw {
 						errorMessage:
-							"Text item found, but it didn't below to you. And you don't have authority",
+							"Path item found, but it didn't below to you. And you don't have authority",
 						status: 403,
 					}
 				}
@@ -229,25 +210,20 @@ router.put("/", auth, async (req: Request, res: Response) => {
 			}
 		}
 
-		// Check if the text is different
-		if (updateText && textToUpdate.text === newText) {
-			updateText = false
-			console.log("Similar text.")
-		}
-
+		// Check new position
 		if (
 			updatePosition &&
-			textToUpdate.pos.x === newX &&
-			textToUpdate.pos.y === newY
+			pathToUpdate.pos.x === x &&
+			pathToUpdate.pos.y === y
 		) {
 			updatePosition = false
 			console.log("Similar position.")
 		}
 
-		if (!updateText && !updatePosition) {
+		if (!updatePosition) {
 			throw {
 				errorMessage:
-					"New position and text is identical to current information.",
+					"New position and scale is identical to current information.",
 				status: 406,
 			}
 		}
@@ -255,26 +231,23 @@ router.put("/", auth, async (req: Request, res: Response) => {
 		// Everything should be ok now.
 		console.log("Everything should a-okay.")
 
-		// Save new text
-		if (updateText) textToUpdate.text = newText
-
 		// Save new position
 		if (updatePosition) {
-			textToUpdate.pos.x = newX
-			textToUpdate.pos.y = newY
+			pathToUpdate.pos.x = x
+			pathToUpdate.pos.y = y
 		}
 
 		// Set edited to true
-		textToUpdate.editInfo.edited = true
+		pathToUpdate.editInfo.edited = true
 
 		// Set the time of the update
 		// textToUpdate.set({ editInfo.lastEditAt: new Date() })
 
-		textToUpdate.editInfo.lastEditAt = new Date()
-		textToUpdate.editInfo.lastEditBy = userId as string
+		pathToUpdate.editInfo.lastEditAt = new Date()
+		pathToUpdate.editInfo.lastEditBy = userId as string
 
 		// Save the text
-		await textToUpdate.save((err, text) => {
+		await pathToUpdate.save((err, text) => {
 			if (err)
 				throw {
 					serverMessage: err,
@@ -285,51 +258,47 @@ router.put("/", auth, async (req: Request, res: Response) => {
 			console.log(text)
 			res.status(202).json(true)
 		})
-
-		// Done
-	} catch (err) {
-		errorResponse(res, err)
-	}
+	} catch (err) {}
 })
 
-// GET: Get text
+// GET: Get Path
 router.get("/", async (req: Request, res: Response) => {
 	try {
-		const { textId, contentId, id } = req.body
+		const { id } = req.body
 
-		var getTextId: string
+		var getPathId: string
 
-		if (!textId && !contentId && !id)
+		if (!id)
 			throw {
 				errorMessage: "Please provide an id.",
 				status: 406,
 			}
-		else getTextId = textId || contentId || id
+		else getPathId = id
 
 		// Valid Id
-		if (!ObjectID.isValid(getTextId))
+		if (!ObjectID.isValid(getPathId))
 			throw {
 				errorMessage: `Invalid object id.`,
 				status: 406,
 			}
 
-		// Get Text
-		const text = await Text.findById(getTextId, (err: any) => {
+		// Get Path
+		const path = await Path.findById(getPathId, (err: any) => {
 			if (err)
 				throw {
-					errorMessage: "Error while finding the text.",
+					errorMessage: "Error while finding the path.",
 					serverMessage: err.message,
 					status: 500,
 				}
 		})
 
-		if (!text)
+		if (!path)
 			throw {
-				errorMessage: "No text found with that id.",
+				errorMessage: "No path found with that id.",
 				status: 404,
 			}
 
-		const author = await User.findOne({ _id: text.author })
+		const author = await User.findOne({ _id: path.author })
 
 		if (!author)
 			throw {
@@ -346,18 +315,18 @@ router.get("/", async (req: Request, res: Response) => {
 		// console.log(frontendUser)
 
 		// Create a new frontendText
-		var resText: IFrontendText = {
-			_id: text._id,
-			text: text.text,
-			pos: text.pos,
+		var resPath: IFrontendPath = {
+			_id: path._id,
+			path: path.path,
+			pos: path.pos,
 			author: frontendUser,
-			editInfo: text.editInfo,
+			editInfo: path.editInfo,
 		}
 
 		// console.log("Response Text")
 		// console.log(resText)
 
-		res.status(200).json(resText)
+		res.status(200).json(resPath)
 
 		// Done
 	} catch (err) {
@@ -365,20 +334,20 @@ router.get("/", async (req: Request, res: Response) => {
 	}
 })
 
-// DELETE: Delete text
+// DELETE: Delete path
 router.delete("/", auth, async (req: Request, res: Response) => {
 	try {
-		const { contentId, textId, id } = req.body
+		const { id } = req.body
 
 		// Check for any id
-		if (!contentId && !textId && !id)
+		if (!id)
 			throw {
 				errorMessage: "Please provide id.",
 				status: 406,
 			}
 
 		// Valid Id
-		const validId = contentId || textId || id
+		const validId = id
 
 		if (!ObjectID.isValid(validId))
 			throw {
@@ -387,11 +356,11 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 			}
 
 		// Find a text
-		const text = await Text.findById(validId)
+		const path = await Path.findById(validId)
 
-		if (!text)
+		if (!path)
 			throw {
-				errorMessage: "No text found with that id.",
+				errorMessage: "No path found with that id.",
 				status: 404,
 			}
 
@@ -408,7 +377,7 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 
 		*/
 
-		if ((userId as string) != (text.author as string)) {
+		if ((userId as string) != (path.author as string)) {
 			// Not the author
 
 			// Find out if current user is moderator or admin
@@ -433,10 +402,10 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 		}
 
 		// A-okay
-		await Text.findByIdAndRemove(
+		await Path.findByIdAndRemove(
 			validId,
 			null,
-			(err: any, text: IText | null) => {
+			(err: any, path: IPath | null) => {
 				if (err)
 					throw {
 						errorMessage: "Something went wrong during deletion.",
@@ -446,7 +415,7 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 			}
 		)
 
-		res.status(202).json({ message: "Text successfully deleted." })
+		res.status(202).json({ message: "Path successfully deleted." })
 
 		// Done
 	} catch (err) {
@@ -456,23 +425,23 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 
 // Get all texts
 router.get("/getAll/", async (req: Request, res: Response) => {
-	console.log("Get all texts.")
+	console.log("Get all paths.")
 
 	try {
-		const texts = await Text.find()
-		console.log(texts)
+		const paths = await Path.find()
+		console.log(paths)
 
-		if (!texts)
+		if (!paths)
 			throw {
 				status: 413,
 				errorMessage: "No texts found.",
 			}
 
-		var resTexts: IFrontendText[] = []
+		var resPaths: IFrontendPath[] = []
 
 		// Change to FrontendText
-		for (var text of texts) {
-			const author = await User.findOne({ _id: text.author })
+		for (var path of paths) {
+			const author = await User.findOne({ _id: path.author })
 
 			if (!author) continue
 
@@ -482,18 +451,18 @@ router.get("/getAll/", async (req: Request, res: Response) => {
 				role: author.role,
 			}
 
-			const newText: IFrontendText = {
-				_id: text._id,
-				text: text.text,
-				pos: text.pos,
+			const newPath: IFrontendPath = {
+				_id: path._id,
+				path: path.path,
+				pos: path.pos,
 				author: user,
-				editInfo: text.editInfo,
+				editInfo: path.editInfo,
 			}
 
-			resTexts.push(newText)
+			resPaths.push(newPath)
 		}
 
-		res.status(200).json(resTexts)
+		res.status(200).json(resPaths)
 	} catch (err: any) {}
 })
 

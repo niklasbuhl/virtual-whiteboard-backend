@@ -3,6 +3,9 @@ import User from "../models/model.user"
 import { compareAuth } from "../functions/hashing"
 import jwt from "jsonwebtoken"
 import IJwtPayloadContent from "../interfaces/interface.updatedJwtPayload"
+import IFrontendUser from "../interfaces/interface.frontendUser"
+import getIdFromToken from "../functions/getIdFromToken"
+import auth from "../middleware/auth"
 
 const router = express.Router()
 
@@ -13,28 +16,37 @@ router.post("/login", async (req: Request, res: Response) => {
 
 	try {
 		// Collect information
-		const { email, password } = req.body
+		const { user, password } = req.body
 
 		// Check information
-		if (!email || !password) {
+		if (!user || !password) {
 			return res
 				.status(400)
 				.json({ errorMessage: "Please enter all information " })
 		}
 
 		console.log("All information is received.")
+		console.log(`${user}`)
 
-		const existingUser = await User.findOne({ email })
+		// Try as username
+		var existingUser = await User.findOne({ username: user })
 
+		// Try as email
+		if (!existingUser) existingUser = await User.findOne({ email: user })
+
+		// Still no user
 		if (!existingUser) {
-			console.log("There is a user with that email.")
-			return res.status(401).json({ errorMessage: "Wrong email or password." })
+			return res
+				.status(401)
+				.json({ errorMessage: "Wrong username, email or password." })
 		}
 
 		const passwordCorrect: boolean = compareAuth(password, existingUser.auth)
 
 		if (!passwordCorrect)
-			return res.status(401).json({ errorMessage: "Wrong email or password." })
+			return res
+				.status(401)
+				.json({ errorMessage: "Wrong username, email or password." })
 
 		console.log("The email and password are authorized!")
 
@@ -46,6 +58,13 @@ router.post("/login", async (req: Request, res: Response) => {
 		// Sign the token
 		const token = jwt.sign(payload, process.env.JWT_SECRET as string)
 
+		// Send the FrontendUser information
+		const frontendUser: IFrontendUser = {
+			username: existingUser.username,
+			role: existingUser.role,
+			_id: existingUser._id,
+		}
+
 		// Send the token
 		res
 			.cookie("token", token, {
@@ -53,7 +72,7 @@ router.post("/login", async (req: Request, res: Response) => {
 				secure: true,
 				sameSite: "none",
 			})
-			.json({ message: "Authorized!" })
+			.json({ message: "Authorized!", user: frontendUser })
 
 		// Done
 	} catch (err) {
@@ -74,7 +93,7 @@ router.get("/logout", (req: Request, res: Response) => {
 })
 
 // GET: Logged In
-router.get("/loggedIn", (req: Request, res: Response) => {
+router.get("/loggedIn", async (req: Request, res: Response) => {
 	try {
 		// Get the cookie
 		const token = req.cookies.token
@@ -92,6 +111,32 @@ router.get("/loggedIn", (req: Request, res: Response) => {
 	} catch (err) {
 		console.log(err)
 		res.json(false)
+	}
+})
+
+router.get("/loggedInUser", auth, async (req: Request, res: Response) => {
+	try {
+		// Return user info
+		const userId = getIdFromToken(req.cookies.token)
+
+		console.log(`User ID: ${userId}`)
+
+		const existingUser = await User.findOne({ _id: userId })
+
+		if (!existingUser)
+			throw {
+				errorMessage: "No user found.",
+			}
+
+		const frontendUser: IFrontendUser = {
+			username: existingUser.username,
+			role: existingUser.role,
+			_id: existingUser._id,
+		}
+
+		res.status(200).json(frontendUser)
+	} catch (err: any) {
+		res.status(404).json(err.errorMessage)
 	}
 })
 

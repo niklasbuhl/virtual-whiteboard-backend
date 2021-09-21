@@ -76,8 +76,10 @@ app.use("/api", require("./routers/router.login"))
 app.use("/api/text", require("./routers/router.text"))
 
 // Image Content
+app.use("/api/image", require("./routers/router.image"))
 
-// Drawing Content
+// Path Content
+app.use("/api/path", require("./routers/router.path"))
 
 // Testing
 app.use("/test", require("./routers/router.test"))

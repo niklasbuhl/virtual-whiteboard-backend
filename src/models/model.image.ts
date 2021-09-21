@@ -1,31 +1,33 @@
 import { Schema, Document } from "mongoose"
+import Coords from "../interfaces/interface.coords"
 import Content, { IContent, options } from "./model.content"
 
 export interface IImage extends Document, IContent {
-	content: {
-		title: string
-		filename: string
-		alt: string
-		h: number
-		w: number
-		data: string
+	url: string
+	pos: Coords
+	scale: {
+		x: number
+		y: number
 	}
+	version: string
 }
 
 const imageSchema = new Schema(
 	{
-		content: {
-			title: { type: String, required: true },
-			filename: { type: String, required: true },
-			alt: { type: String, required: false },
-			h: { type: Number, required: true },
-			w: { type: Number, required: true },
-			data: { type: String, required: true },
+		url: { type: String, required: true },
+		pos: {
+			x: { type: Number, required: true },
+			y: { type: Number, required: true },
 		},
+		scale: {
+			x: { type: Number, required: false, default: 1 },
+			y: { type: Number, required: false, default: 1 },
+		},
+		version: { type: String, required: false, default: "0.1" },
 	},
 	options
 )
 
-const Image = Content.discriminator<IImage>("Text", imageSchema)
+const ImageModel = Content.discriminator<IImage>("Image", imageSchema)
 
-export default Image
+export default ImageModel

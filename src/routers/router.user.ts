@@ -7,6 +7,7 @@ import auth from "../middleware/auth"
 import jwtDecode from "jwt-decode"
 import IJwtPayloadContent from "../interfaces/interface.updatedJwtPayload"
 import IAuth from "../interfaces/interface.auth"
+import Role from "../enums/enum.role"
 // import { Hash } from "crypto"
 
 const router = express.Router()
@@ -101,8 +102,13 @@ router.put("/", auth, async (req: Request, res: Response) => {
 		// console.log(req.body)
 		// console.log(req.cookies.token)
 
-		const { newUsername, newEmail, newPassword, oldPassword, otherUserId } =
+		const { newUsername, newEmail, email, newPassword, password, otherUserId } =
 			req.body
+
+		console.log(`newUsername: ${newUsername}`)
+		console.log(`newEmail: ${newEmail}`)
+		console.log(`newPassword: ${newPassword}`)
+		console.log(`email: ${email}`)
 
 		const token = req.cookies.token
 
@@ -120,22 +126,25 @@ router.put("/", auth, async (req: Request, res: Response) => {
 		if (!otherUserId) {
 			const response = await saveNewUserInformation(
 				user,
+				password,
 				newUsername,
 				newEmail,
-				newPassword,
-				oldPassword
+				email,
+				newPassword
 			)
 
 			if (!response.success) throw response.message
 
-			res.status(response.status).json({ message: response.message })
+			// res.status(response.status).json({ message: response.message })
+
+			// return
 		}
 
 		// Admin changes on other user
 		else if (otherUserId) {
 			// Trying to change something on another user
 
-			if (user.rank != "Admin") throw "Not authorized."
+			if (user.role != Role.Admin) throw "Not authorized."
 
 			const otherUser = await User.findById(otherUserId)
 
@@ -144,41 +153,56 @@ router.put("/", auth, async (req: Request, res: Response) => {
 			// Try update information
 			const response = await saveNewUserInformation(
 				otherUser,
+				password,
 				newUsername,
 				newEmail,
-				newPassword,
-				oldPassword
+				email,
+				newPassword
 			)
 
 			// Failed
 			if (!response.success) throw response.message
 
 			// Success
-			res.status(response.status).json({ message: response.message })
+			// res.status(response.status).json({ message: response.message })
+
+			// return
 		}
 
 		res.status(200).json({ message: "Information updated." })
+
+		return
 	} catch (err) {
 		console.error(err)
 		res.status(500).json({ errorMessage: err })
 	}
 })
 
+// user, newUsername, newEmail, email, password, newPassword
+
 // Return and array of success, message and code
 async function saveNewUserInformation(
 	user: IUser,
+	password: string,
 	newUsername?: string,
 	newEmail?: string,
-	newPassword?: string,
-	oldPassword?: string
+	previousEmail?: string,
+	newPassword?: string
 ): Promise<{ success: boolean; message: string; status: number }> {
 	try {
 		console.log("Updating personal information.")
+
+		if (newUsername) console.log(`newUsername: ${newUsername}`)
+		if (newEmail) console.log(`newEmail: ${newEmail}`)
+		if (newPassword) console.log(`newPassword`)
 
 		if (!newUsername && !newEmail && !newPassword) throw "Missing information."
 
 		// Email
 		if (newEmail) {
+			// Check if the current user knows the current email
+			if (user.email != previousEmail) throw "Please enter current email."
+
 			// Check if it is already the username
 			if (user.email === newEmail) throw "This is already the email."
 
@@ -193,6 +217,8 @@ async function saveNewUserInformation(
 		// Username
 		if (newUsername) {
 			// Check if it is already the username
+			console.log(user.username)
+
 			if (user.username === newUsername) throw "This is already the username."
 
 			// Check if this username is used by another user
@@ -204,8 +230,8 @@ async function saveNewUserInformation(
 		}
 
 		// Password
-		if (newPassword && oldPassword) {
-			if (!compareAuth(oldPassword, user.auth)) throw "Wrong password."
+		if (newPassword && password) {
+			if (!compareAuth(password, user.auth)) throw "Wrong password."
 
 			const newAuth: IAuth = createNewAuth(newPassword)
 
@@ -221,7 +247,7 @@ async function saveNewUserInformation(
 			message: "Information successfully saved.",
 			status: 200,
 		}
-	} catch (err) {
+	} catch (err: any) {
 		return {
 			success: false,
 			message: err,
@@ -262,7 +288,7 @@ router.get("/", auth, async (req: Request, res: Response) => {
 			_id: user._id,
 			username: user.username,
 			email: user.email,
-			rank: user.rank,
+			role: user.role,
 		})
 	} catch (err) {
 		console.error(err)
@@ -294,7 +320,7 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 			(username && username !== user.username) ||
 			(email && email !== user.email)
 		) {
-			if (user.rank !== "Admin") throw "Not authorized"
+			if (user.role !== Role.Admin) throw "Not authorized"
 		}
 
 		// Select query

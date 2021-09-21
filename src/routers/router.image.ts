@@ -1,49 +1,47 @@
-import express, { Response, Request, NextFunction, response } from "express"
+import express, { Request, Response } from "express"
 import getIdFromToken from "../functions/getIdFromToken"
 import auth from "../middleware/auth"
-import User, { IUser } from "../models/model.user"
-import Text, { IText } from "../models/model.text"
-import errorResponse from "../middleware/errorResponse"
-import { ObjectID } from "mongodb"
+import ImageModel, { IImage } from "../models/model.image"
+import User from "../models/model.user"
 import Mongoose from "mongoose"
+import { ObjectID } from "mongodb"
+import errorResponse from "../middleware/errorResponse"
 import Role from "../enums/enum.role"
 import IFrontendUser from "../interfaces/interface.frontendUser"
-import IFrontendText from "../interfaces/interface.frontendText"
+import IFrontendImage from "../interfaces/interface.frontendImage"
 
 const router = express.Router()
 
-// POST: Create new text
+// POST: Create new image
 router.post("/", auth, async (req: Request, res: Response) => {
-	// content
-	// authorId
-	// authorName
-	// createdAt
+	console.log("POST Image Request")
+
+	// url
+	// posX
+	// posY
+	// scaleX
+	// scaleY
 
 	try {
-		// Saving new text
-		// console.log("POST Request for text")
-		// console.log(req.body)
-		// Content
-		const { content, text, x, y } = req.body
-		if (!content && !text)
+		const { url, posX, posY, scaleX, scaleY } = req.body
+
+		if (!url)
 			throw {
 				status: 204,
-				errorMessage: "No content.",
+				errorMessage: "No image URL.",
 			}
 
-		if (content && text) {
-			throw {
-				status: 500,
-				errorMessage: "Please only use either 'content' or 'text'.",
-			}
-		}
-
-		if (!x && !y) {
+		if (!posX && !posY)
 			throw {
 				status: 204,
-				errorMessage: "No coords.",
+				errorMessage: "No image position.",
 			}
-		}
+
+		if (!scaleX && !scaleY)
+			throw {
+				status: 204,
+				errorMessage: "No image scale.",
+			}
 
 		// AuthorId
 		const authorId = getIdFromToken(req.cookies.token)
@@ -63,33 +61,33 @@ router.post("/", auth, async (req: Request, res: Response) => {
 				forceLogOut: true,
 			}
 
-		// const authorName = currentUser.username
-
 		// CreatedAt
 		const createdAt = new Date()
 
-		// Create new text
-		const newText: IText = new Text({
-			text: content || text,
+		// Create new Image
+		const newImage: IImage = new ImageModel({
+			url: url,
 			author: author._id,
 			editInfo: {
 				createdAt: createdAt,
 			},
 			pos: {
-				x: x,
-				y: y,
+				x: posX,
+				y: posY,
+			},
+			scale: {
+				x: scaleX,
+				y: scaleY,
 			},
 		})
 
-		console.log(newText)
+		console.log(newImage)
 
-		await newText.save()
+		await newImage.save()
 
 		res
 			.status(201)
-			.json({ message: "Text created successfully.", id: newText._id })
-
-		// Done
+			.json({ message: "Image created successfully.", id: newImage._id })
 	} catch (err: any) {
 		console.error(err.forceLogOut)
 		console.error(err.serverMessage)
@@ -105,52 +103,48 @@ router.post("/", auth, async (req: Request, res: Response) => {
 	}
 })
 
-// PUT: Update text
+// PUT: Update Image
 router.put("/", auth, async (req: Request, res: Response) => {
-	console.log("PUT Request")
+	console.log("PUT Image Request")
+
 	try {
-		console.log(req.body)
+		const { id, imageId, posX, posY, scaleX, scaleY } = req.body
 
-		const { content, text, textId, contentId, id, x, y } = req.body
+		var updateImageId: string,
+			updatePosition: boolean = false,
+			updateScale: boolean = false
 
-		var updateTextId: string,
-			newText: string = "",
-			newX: number = 0,
-			newY: number = 0,
-			updateText: boolean = false,
-			updatePosition: boolean = false
-
-		// Check for content id
-		if (!textId && !contentId && !id)
+		if (!id && !imageId)
 			throw {
-				errorMessage: "No text id.",
+				errorMessage: "No image id.",
 				status: 406,
 			}
-		else updateTextId = (textId || contentId || id).toString()
+		else updateImageId = id
 
-		console.log(`Found content id: ${updateTextId}`)
+		console.log(`Image ID: ${updateImageId}`)
 
-		// Check for any content or position
-		if (!content && !text && !x && !y) {
+		if (!posX && !posY && !scaleX && !scaleY)
 			throw {
-				errorMessage: "No text content or position.",
+				errorMessage: "No image updates found.",
 				status: 406,
 			}
-		} else {
-			console.log("Found new content.")
-			// If there is content or text
-			if (content || text) {
-				newText = (content || text).toString()
-				updateText = true
-			}
+		else {
+			console.log("Found image updates.")
 
-			// If there is a new position
-			if (x && y) {
-				newX = x
-				newY = y
+			if (posX && posY) {
 				updatePosition = true
 			}
+
+			if (scaleX && scaleY) {
+				updateScale = true
+			}
 		}
+
+		if (!updatePosition && !updateScale)
+			throw {
+				errorMessage: "No image updates found.",
+				status: 406,
+			}
 
 		// Get user id
 		const userId = getIdFromToken(req.cookies.token)
@@ -166,46 +160,48 @@ router.put("/", auth, async (req: Request, res: Response) => {
 		console.log("Found user ID in cookie.")
 
 		// Check for valid id
-		if (!ObjectID.isValid(updateTextId))
+		if (!ObjectID.isValid(updateImageId))
 			throw {
 				errorMessage: `Invalid object id.`,
 				status: 406,
 			}
 
-		console.log("Text ID is valid.")
+		console.log("Image ID is valid.")
 
 		// Find a text
-		console.log(`Finding a text with id: ${updateTextId}`)
+		console.log(`Finding an image with id: ${updateImageId}`)
 
-		const textToUpdate: IText | Mongoose.Error.CastError | null =
-			await Text.findById(updateTextId, function (err: any, text: Text): void {
-				if (err) {
-					console.log(`Mongoose Error: ${err.message}`)
+		const imageToUpdate: IImage | Mongoose.Error.CastError | null =
+			await ImageModel.findById(
+				updateImageId,
+				function (err: any, image: typeof ImageModel): void {
+					if (err) {
+						console.log(`Mongoose Error: ${err.message}`)
 
-					err.serverMessage = err.message
-					err.status = 406
+						err.serverMessage = err.message
+						err.status = 406
 
-					errorResponse(res, err)
-				} else {
-					console.log("Success...")
+						errorResponse(res, err)
+					} else {
+						console.log("Success...")
+					}
 				}
-			})
+			)
 
-		console.log("Found a text:")
+		console.log("Found an image:")
 
-		console.log(textToUpdate)
+		console.log(imageToUpdate)
 
 		// Make sure a text is found.
-		if (!textToUpdate)
+		if (!imageToUpdate)
 			throw {
-				errorMessage: `No text item found with id: ${updateTextId}.`,
+				errorMessage: `No text item found with id: ${updateImageId}.`,
 				status: 404,
 			}
-
 		// Check if the current user is the author of the text.
-		console.log(`User id: ${userId}, text author id: ${textToUpdate.author}`)
+		console.log(`User id: ${userId}, text author id: ${imageToUpdate.author}`)
 
-		if ((userId as string) != (textToUpdate.author as string)) {
+		if ((userId as string) != (imageToUpdate.author as string)) {
 			// Not the author
 
 			// Find out if current user is moderator or admin
@@ -229,25 +225,30 @@ router.put("/", auth, async (req: Request, res: Response) => {
 			}
 		}
 
-		// Check if the text is different
-		if (updateText && textToUpdate.text === newText) {
-			updateText = false
-			console.log("Similar text.")
-		}
-
+		// Check new position
 		if (
 			updatePosition &&
-			textToUpdate.pos.x === newX &&
-			textToUpdate.pos.y === newY
+			imageToUpdate.pos.x === posX &&
+			imageToUpdate.pos.y === posY
 		) {
 			updatePosition = false
 			console.log("Similar position.")
 		}
 
-		if (!updateText && !updatePosition) {
+		// Check new scale
+		if (
+			updateScale &&
+			imageToUpdate.scale.x === scaleX &&
+			imageToUpdate.scale.y === scaleY
+		) {
+			updateScale = false
+			console.log("Similar scale.")
+		}
+
+		if (!updateScale && !updatePosition) {
 			throw {
 				errorMessage:
-					"New position and text is identical to current information.",
+					"New position and scale is identical to current information.",
 				status: 406,
 			}
 		}
@@ -255,26 +256,29 @@ router.put("/", auth, async (req: Request, res: Response) => {
 		// Everything should be ok now.
 		console.log("Everything should a-okay.")
 
-		// Save new text
-		if (updateText) textToUpdate.text = newText
-
 		// Save new position
 		if (updatePosition) {
-			textToUpdate.pos.x = newX
-			textToUpdate.pos.y = newY
+			imageToUpdate.pos.x = posX
+			imageToUpdate.pos.y = posY
+		}
+
+		// Save new scale
+		if (updateScale) {
+			imageToUpdate.scale.x = scaleX
+			imageToUpdate.scale.y = scaleY
 		}
 
 		// Set edited to true
-		textToUpdate.editInfo.edited = true
+		imageToUpdate.editInfo.edited = true
 
 		// Set the time of the update
 		// textToUpdate.set({ editInfo.lastEditAt: new Date() })
 
-		textToUpdate.editInfo.lastEditAt = new Date()
-		textToUpdate.editInfo.lastEditBy = userId as string
+		imageToUpdate.editInfo.lastEditAt = new Date()
+		imageToUpdate.editInfo.lastEditBy = userId as string
 
 		// Save the text
-		await textToUpdate.save((err, text) => {
+		await imageToUpdate.save((err, text) => {
 			if (err)
 				throw {
 					serverMessage: err,
@@ -285,51 +289,47 @@ router.put("/", auth, async (req: Request, res: Response) => {
 			console.log(text)
 			res.status(202).json(true)
 		})
-
-		// Done
-	} catch (err) {
-		errorResponse(res, err)
-	}
+	} catch (err) {}
 })
 
-// GET: Get text
+// GET: Get Image
 router.get("/", async (req: Request, res: Response) => {
 	try {
-		const { textId, contentId, id } = req.body
+		const { imageId, contentId, id } = req.body
 
-		var getTextId: string
+		var getImageId: string
 
-		if (!textId && !contentId && !id)
+		if (!imageId && !contentId && !id)
 			throw {
 				errorMessage: "Please provide an id.",
 				status: 406,
 			}
-		else getTextId = textId || contentId || id
+		else getImageId = imageId || contentId || id
 
 		// Valid Id
-		if (!ObjectID.isValid(getTextId))
+		if (!ObjectID.isValid(getImageId))
 			throw {
 				errorMessage: `Invalid object id.`,
 				status: 406,
 			}
 
 		// Get Text
-		const text = await Text.findById(getTextId, (err: any) => {
+		const image = await ImageModel.findById(getImageId, (err: any) => {
 			if (err)
 				throw {
-					errorMessage: "Error while finding the text.",
+					errorMessage: "Error while finding the image.",
 					serverMessage: err.message,
 					status: 500,
 				}
 		})
 
-		if (!text)
+		if (!image)
 			throw {
-				errorMessage: "No text found with that id.",
+				errorMessage: "No image found with that id.",
 				status: 404,
 			}
 
-		const author = await User.findOne({ _id: text.author })
+		const author = await User.findOne({ _id: image.author })
 
 		if (!author)
 			throw {
@@ -346,18 +346,19 @@ router.get("/", async (req: Request, res: Response) => {
 		// console.log(frontendUser)
 
 		// Create a new frontendText
-		var resText: IFrontendText = {
-			_id: text._id,
-			text: text.text,
-			pos: text.pos,
+		var resImage: IFrontendImage = {
+			_id: image._id,
+			url: image.url,
+			pos: image.pos,
+			scale: image.scale,
 			author: frontendUser,
-			editInfo: text.editInfo,
+			editInfo: image.editInfo,
 		}
 
 		// console.log("Response Text")
 		// console.log(resText)
 
-		res.status(200).json(resText)
+		res.status(200).json(resImage)
 
 		// Done
 	} catch (err) {
@@ -368,17 +369,17 @@ router.get("/", async (req: Request, res: Response) => {
 // DELETE: Delete text
 router.delete("/", auth, async (req: Request, res: Response) => {
 	try {
-		const { contentId, textId, id } = req.body
+		const { contentId, imageId, id } = req.body
 
 		// Check for any id
-		if (!contentId && !textId && !id)
+		if (!contentId && !imageId && !id)
 			throw {
 				errorMessage: "Please provide id.",
 				status: 406,
 			}
 
 		// Valid Id
-		const validId = contentId || textId || id
+		const validId = contentId || imageId || id
 
 		if (!ObjectID.isValid(validId))
 			throw {
@@ -387,9 +388,9 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 			}
 
 		// Find a text
-		const text = await Text.findById(validId)
+		const image = await ImageModel.findById(validId)
 
-		if (!text)
+		if (!image)
 			throw {
 				errorMessage: "No text found with that id.",
 				status: 404,
@@ -408,7 +409,7 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 
 		*/
 
-		if ((userId as string) != (text.author as string)) {
+		if ((userId as string) != (image.author as string)) {
 			// Not the author
 
 			// Find out if current user is moderator or admin
@@ -433,10 +434,10 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 		}
 
 		// A-okay
-		await Text.findByIdAndRemove(
+		await ImageModel.findByIdAndRemove(
 			validId,
 			null,
-			(err: any, text: IText | null) => {
+			(err: any, text: IImage | null) => {
 				if (err)
 					throw {
 						errorMessage: "Something went wrong during deletion.",
@@ -446,7 +447,7 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 			}
 		)
 
-		res.status(202).json({ message: "Text successfully deleted." })
+		res.status(202).json({ message: "Image successfully deleted." })
 
 		// Done
 	} catch (err) {
@@ -459,20 +460,20 @@ router.get("/getAll/", async (req: Request, res: Response) => {
 	console.log("Get all texts.")
 
 	try {
-		const texts = await Text.find()
-		console.log(texts)
+		const images = await ImageModel.find()
+		console.log(images)
 
-		if (!texts)
+		if (!images)
 			throw {
 				status: 413,
 				errorMessage: "No texts found.",
 			}
 
-		var resTexts: IFrontendText[] = []
+		var resImages: IFrontendImage[] = []
 
 		// Change to FrontendText
-		for (var text of texts) {
-			const author = await User.findOne({ _id: text.author })
+		for (var image of images) {
+			const author = await User.findOne({ _id: image.author })
 
 			if (!author) continue
 
@@ -482,18 +483,19 @@ router.get("/getAll/", async (req: Request, res: Response) => {
 				role: author.role,
 			}
 
-			const newText: IFrontendText = {
-				_id: text._id,
-				text: text.text,
-				pos: text.pos,
+			const newImage: IFrontendImage = {
+				_id: image._id,
+				url: image.url,
+				pos: image.pos,
+				scale: image.scale,
 				author: user,
-				editInfo: text.editInfo,
+				editInfo: image.editInfo,
 			}
 
-			resTexts.push(newText)
+			resImages.push(newImage)
 		}
 
-		res.status(200).json(resTexts)
+		res.status(200).json(resImages)
 	} catch (err: any) {}
 })
 
