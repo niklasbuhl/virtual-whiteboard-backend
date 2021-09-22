@@ -295,16 +295,18 @@ router.put("/", auth, async (req: Request, res: Response) => {
 // GET: Get Image
 router.get("/", async (req: Request, res: Response) => {
 	try {
-		const { imageId, contentId, id } = req.body
+		const { id } = req.body
 
 		var getImageId: string
 
-		if (!imageId && !contentId && !id)
+		console.log(id)
+
+		if (!id)
 			throw {
 				errorMessage: "Please provide an id.",
 				status: 406,
 			}
-		else getImageId = imageId || contentId || id
+		else getImageId = id
 
 		// Valid Id
 		if (!ObjectID.isValid(getImageId))
@@ -355,7 +357,7 @@ router.get("/", async (req: Request, res: Response) => {
 			editInfo: image.editInfo,
 		}
 
-		// console.log("Response Text")
+		console.log("Response Image")
 		// console.log(resText)
 
 		res.status(200).json(resImage)
@@ -368,18 +370,20 @@ router.get("/", async (req: Request, res: Response) => {
 
 // DELETE: Delete text
 router.delete("/", auth, async (req: Request, res: Response) => {
+	console.log("Delete Image Request")
+
 	try {
-		const { contentId, imageId, id } = req.body
+		const { id } = req.body
 
 		// Check for any id
-		if (!contentId && !imageId && !id)
+		if (!id)
 			throw {
 				errorMessage: "Please provide id.",
 				status: 406,
 			}
 
 		// Valid Id
-		const validId = contentId || imageId || id
+		const validId = id
 
 		if (!ObjectID.isValid(validId))
 			throw {
@@ -392,22 +396,12 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 
 		if (!image)
 			throw {
-				errorMessage: "No text found with that id.",
+				errorMessage: "No image found with that id.",
 				status: 404,
 			}
 
 		// Check if the authorId matches the Id
 		const userId = getIdFromToken(req.cookies.token)
-
-		/*
-		
-		if (userId != text.author._id)
-		throw {
-			errorMessage: "You did not create this text.",
-				status: 403,
-			}
-
-		*/
 
 		if ((userId as string) != (image.author as string)) {
 			// Not the author
@@ -421,7 +415,7 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 				if (userRole != Role.Moderator && userRole != Role.Admin) {
 					throw {
 						errorMessage:
-							"Text item found, but it didn't below to you. And you don't have authority",
+							"Image item found, but it didn't below to you. And you don't have authority",
 						status: 403,
 					}
 				}
@@ -434,18 +428,16 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 		}
 
 		// A-okay
-		await ImageModel.findByIdAndRemove(
-			validId,
-			null,
-			(err: any, text: IImage | null) => {
-				if (err)
-					throw {
-						errorMessage: "Something went wrong during deletion.",
-						serverMessage: err.message,
-						status: 500,
-					}
-			}
-		)
+		await ImageModel.deleteOne({ _id: validId }, (err: any) => {
+			if (err)
+				throw {
+					errorMessage: "Something went wrong during deletion.",
+					serverMessage: err.message,
+					status: 500,
+				}
+		})
+
+		console.log("Image successfully deleted!")
 
 		res.status(202).json({ message: "Image successfully deleted." })
 
@@ -457,7 +449,7 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 
 // Get all texts
 router.get("/getAll/", async (req: Request, res: Response) => {
-	console.log("Get all texts.")
+	console.log("Get all images.")
 
 	try {
 		const images = await ImageModel.find()
@@ -466,7 +458,7 @@ router.get("/getAll/", async (req: Request, res: Response) => {
 		if (!images)
 			throw {
 				status: 413,
-				errorMessage: "No texts found.",
+				errorMessage: "No images found.",
 			}
 
 		var resImages: IFrontendImage[] = []
