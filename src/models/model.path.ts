@@ -5,6 +5,7 @@ import Content, { IContent, options } from "./model.content"
 export interface IPath extends Document, IContent {
 	path: string
 	pos: Coords
+	originPos: Coords
 	version: string
 }
 
@@ -12,10 +13,14 @@ const pathSchema = new Schema(
 	{
 		path: { type: String, required: true },
 		pos: {
-			x: { type: String, required: true },
-			y: { type: String, required: true },
+			x: { type: Number, required: true },
+			y: { type: Number, required: true },
 		},
-		version: { type: String, required: false, default: "0.1" },
+		originPos: {
+			x: { type: Number, required: true },
+			y: { type: Number, required: true },
+		},
+		version: { type: String, required: false, default: "0.2" },
 	},
 	options
 )

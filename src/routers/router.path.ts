@@ -23,9 +23,9 @@ router.post("/", auth, async (req: Request, res: Response) => {
 	// y
 
 	try {
-		const { path, x, y } = req.body
+		const { pathStr, x, y } = req.body
 
-		if (!path)
+		if (!pathStr)
 			throw {
 				status: 204,
 				errorMessage: "No path string.",
@@ -60,12 +60,16 @@ router.post("/", auth, async (req: Request, res: Response) => {
 
 		// Create new Image
 		const newPath: IPath = new Path({
-			path: path,
+			path: pathStr,
 			author: author._id,
 			editInfo: {
 				createdAt: createdAt,
 			},
 			pos: {
+				x: x,
+				y: y,
+			},
+			originPos: {
 				x: x,
 				y: y,
 			},
@@ -319,6 +323,7 @@ router.get("/", async (req: Request, res: Response) => {
 			_id: path._id,
 			path: path.path,
 			pos: path.pos,
+			originPos: path.originPos,
 			author: frontendUser,
 			editInfo: path.editInfo,
 		}
@@ -455,6 +460,7 @@ router.get("/getAll/", async (req: Request, res: Response) => {
 				_id: path._id,
 				path: path.path,
 				pos: path.pos,
+				originPos: path.originPos,
 				author: user,
 				editInfo: path.editInfo,
 			}

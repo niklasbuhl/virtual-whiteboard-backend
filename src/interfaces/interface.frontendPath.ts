@@ -6,6 +6,7 @@ interface IFrontendPath {
 	_id: string
 	path: string
 	pos: Coords
+	originPos: Coords
 	author: IFrontendUser
 	editInfo: IEditInfo
 }
