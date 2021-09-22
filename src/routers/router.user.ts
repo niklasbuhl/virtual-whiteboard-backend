@@ -8,6 +8,7 @@ import jwtDecode from "jwt-decode"
 import IJwtPayloadContent from "../interfaces/interface.updatedJwtPayload"
 import IAuth from "../interfaces/interface.auth"
 import Role from "../enums/enum.role"
+import errorResponse from "../middleware/errorResponse"
 // import { Hash } from "crypto"
 
 const router = express.Router()
@@ -25,34 +26,47 @@ router.post("/", async (req: Request, res: Response) => {
 
 		// Any missing information?
 		if (!username || !email || !password || !passwordVerify)
-			return res.status(400).json({
+			throw {
 				errorMessage: "Please enter all required information.",
-			})
+			}
+
+		console.log("All information is received.")
+		console.log(email)
+		console.log(username)
 
 		if (password.length < 6)
-			return res.status(400).json({ errorMessage: "Password is too short." })
+			throw { status: 406, errorMessage: "Password is too short." }
 
 		// Password verify
 		if (password != passwordVerify)
-			return res.status(400).json({ errorMessage: "Please verify password." })
+			throw { status: 406, errorMessage: "Please verify password." }
+
+		console.log("Password okay.")
 
 		// Email already used
 		const existingUserWithEmail = await User.findOne({ email: email })
 
 		if (existingUserWithEmail)
-			return res.status(400).json({
+			throw {
+				status: 409,
 				errorMessage: "An user with that email already exists.",
-			})
+			}
+
+		console.log("Email okay.")
 
 		// Username already used
 		const existingUserWithUsername = await User.findOne({ username: username })
 
 		if (existingUserWithUsername)
-			return res.status(400).json({
+			throw {
+				status: 409,
 				errorMessage: "An user with that username already exists.",
-			})
+			}
+
+		console.log("Username okay.")
 
 		// TODO Email verify by sending an email
+		console.log("All information is unique.")
 
 		// --- Create new user
 
@@ -60,10 +74,11 @@ router.post("/", async (req: Request, res: Response) => {
 		const auth = createNewAuth(password)
 
 		// Create new User
-		const newUser = new User({
+		const newUser: IUser = new User({
 			username: username,
 			email: email,
 			auth: auth,
+			role: Role.User,
 		})
 
 		console.log("Creating new user.")
@@ -89,9 +104,12 @@ router.post("/", async (req: Request, res: Response) => {
 			.json({ message: "User successfully registered." })
 
 		// Done
-	} catch (err) {
+	} catch (err: any) {
 		console.error(err)
-		res.sendStatus(500)
+
+		errorResponse(res, err)
+		// if (!err.status) err.status = 500
+		// res.status(err.status).json(err.errorMessage)
 	}
 })
 
@@ -298,6 +316,8 @@ router.get("/", auth, async (req: Request, res: Response) => {
 
 // DELETE: Delete a user
 router.delete("/", auth, async (req: Request, res: Response) => {
+	console.log("Delete User Request")
+
 	try {
 		const { otherId, username, email, password } = req.body
 
@@ -308,11 +328,17 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 		const user = await User.findById(userId)
 
 		// Check if the current user exists
-		if (!user) throw "Couldn't find your user."
+		if (!user)
+			throw {
+				status: 400,
+				errorMessage: "Couldn't find your user.",
+
+				forceLogOut: true,
+			}
 
 		// Must enter correct password
 		if (!compareAuth(password, user.auth))
-			throw "Please enter correct password."
+			throw { status: 403, errorMessage: "Please enter correct password." }
 
 		// Check if trying to delete another user
 		if (
@@ -320,7 +346,11 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 			(username && username !== user.username) ||
 			(email && email !== user.email)
 		) {
-			if (user.role !== Role.Admin) throw "Not authorized"
+			if (user.role !== Role.Admin)
+				throw {
+					status: 403,
+					errorMessage: "Not authorized",
+				}
 		}
 
 		// Select query
@@ -337,7 +367,9 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 		const removeUser = await User.findOne(query, (err: any) => {
 			if (err) throw err
 		})
-		if (!removeUser) throw "Couldn't find user to remove."
+
+		if (!removeUser)
+			throw { status: 409, errorMessage: "Couldn't find user to remove." }
 
 		if (user._id === removeUser._id) {
 			// Clear cookie
@@ -359,7 +391,8 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 		res.status(200).json({ message: "Deletion successful." })
 	} catch (err) {
 		console.error(err)
-		res.status(500).json({ errorMessage: err })
+		errorResponse(res, err)
+		// res.status(500).json({ errorMessage: err })
 	}
 })
 
