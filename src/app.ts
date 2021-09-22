@@ -26,7 +26,7 @@ app.use(cookieParser())
 
 // Open all ports for communication
 const originUrls: string[] = [
-	process.env.FRONTEND_DEV as string,
+	// process.env.FRONTEND_DEV as string,
 	process.env.FRONTEND_APP as string,
 ]
 
