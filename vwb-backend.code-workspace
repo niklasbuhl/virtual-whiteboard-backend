@@ -19,7 +19,10 @@
 			"titleBar.activeBackground": "#727bbb",
 			"titleBar.activeForeground": "#e7e7e7",
 			"titleBar.inactiveBackground": "#727bbb99",
-			"titleBar.inactiveForeground": "#e7e7e799"
+			"titleBar.inactiveForeground": "#e7e7e799",
+			"sash.hoverBorder": "#949bcc",
+			"statusBarItem.remoteBackground": "#727bbb",
+			"statusBarItem.remoteForeground": "#e7e7e7"
 		},
 		"peacock.color": "#727bbb",
 		"cSpell.words": [

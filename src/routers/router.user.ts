@@ -190,7 +190,7 @@ router.put("/", auth, async (req: Request, res: Response) => {
 		res.status(200).json({ message: "Information updated." })
 
 		return
-	} catch (err) {
+	} catch (err: any) {
 		console.error(err)
 		res.status(500).json({ errorMessage: err })
 	}
@@ -389,7 +389,7 @@ router.delete("/", auth, async (req: Request, res: Response) => {
 		)
 
 		res.status(200).json({ message: "Deletion successful." })
-	} catch (err) {
+	} catch (err: any) {
 		console.error(err)
 		errorResponse(res, err)
 		// res.status(500).json({ errorMessage: err })

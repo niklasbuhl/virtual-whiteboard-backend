@@ -7,7 +7,7 @@ import cors from "cors"
 import mongoose from "mongoose"
 
 // ---
-console.log("Hello World! ")
+console.log("Hello World! 2")
 
 // --- App
 

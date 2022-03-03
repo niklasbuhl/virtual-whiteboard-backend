@@ -12,7 +12,7 @@ router.get("/tryCatch", async (req: Request, res: Response) => {
 			throw { status: 500, errorMessage: "Something went terribly wrong." }
 
 		res.status(200).json({ message: message })
-	} catch (err) {
+	} catch (err: any) {
 		console.log(err)
 
 		res
